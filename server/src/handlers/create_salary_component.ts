@@ -1,15 +1,39 @@
+import { db } from '../db';
+import { salaryComponentsTable } from '../db/schema';
 import { type CreateSalaryComponentInput, type SalaryComponent } from '../schema';
+import { eq, and } from 'drizzle-orm';
 
-export async function createSalaryComponent(input: CreateSalaryComponentInput): Promise<SalaryComponent> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is creating a new salary component (base salary, allowance, or deduction).
-  // Should validate the component type and ensure name uniqueness within the same type.
-  return Promise.resolve({
-    id: 0, // Placeholder ID
-    name: input.name,
-    type: input.type,
-    description: input.description,
-    created_at: new Date(),
-    updated_at: new Date()
-  } as SalaryComponent);
-}
+export const createSalaryComponent = async (input: CreateSalaryComponentInput): Promise<SalaryComponent> => {
+  try {
+    // Check for name uniqueness within the same type
+    const existingComponent = await db.select()
+      .from(salaryComponentsTable)
+      .where(
+        and(
+          eq(salaryComponentsTable.name, input.name),
+          eq(salaryComponentsTable.type, input.type)
+        )
+      )
+      .limit(1)
+      .execute();
+
+    if (existingComponent.length > 0) {
+      throw new Error(`Salary component with name '${input.name}' already exists for type '${input.type}'`);
+    }
+
+    // Insert salary component record
+    const result = await db.insert(salaryComponentsTable)
+      .values({
+        name: input.name,
+        type: input.type,
+        description: input.description
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('Salary component creation failed:', error);
+    throw error;
+  }
+};

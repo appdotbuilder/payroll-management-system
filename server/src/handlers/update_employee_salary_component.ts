@@ -1,16 +1,34 @@
+import { db } from '../db';
+import { employeeSalaryComponentsTable } from '../db/schema';
 import { type UpdateEmployeeSalaryComponentInput, type EmployeeSalaryComponent } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function updateEmployeeSalaryComponent(input: UpdateEmployeeSalaryComponentInput): Promise<EmployeeSalaryComponent> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is updating the amount of an employee's salary component.
-  // Should validate that the employee salary component assignment exists.
-  // Should update the updated_at timestamp.
-  return Promise.resolve({
-    id: input.id,
-    employee_id: 1, // Placeholder
-    salary_component_id: 1, // Placeholder
-    amount: input.amount,
-    created_at: new Date(), // Placeholder
-    updated_at: new Date()
-  } as EmployeeSalaryComponent);
+  try {
+    // Update the employee salary component record with new amount and timestamp
+    const result = await db.update(employeeSalaryComponentsTable)
+      .set({
+        amount: input.amount.toString(), // Convert number to string for numeric column
+        updated_at: new Date()
+      })
+      .where(eq(employeeSalaryComponentsTable.id, input.id))
+      .returning()
+      .execute();
+
+    // Check if record was found and updated
+    if (result.length === 0) {
+      throw new Error(`Employee salary component with id ${input.id} not found`);
+    }
+
+    const updated = result[0];
+    
+    // Convert numeric fields back to numbers before returning
+    return {
+      ...updated,
+      amount: parseFloat(updated.amount) // Convert string back to number
+    };
+  } catch (error) {
+    console.error('Employee salary component update failed:', error);
+    throw error;
+  }
 }
